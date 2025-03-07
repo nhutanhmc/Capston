@@ -1,0 +1,297 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String    @id @default(uuid())
+  username    String    @unique
+  email       String    @unique
+  name        String?
+  age         Int?
+  password    String
+  role        String
+  runners     Runner[]
+  experts     Expert[]
+  certificates Certificate[]
+  notifications Notification[]
+  chatsSent   Chat[]    @relation("Sender")
+  chatsReceived Chat[]  @relation("Receiver")
+  comments    Comment[]
+  likes       Like[]
+  blogPosts   Blog[]
+  ratings     ExpertRating[]
+  refreshToken   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Runner {
+  id               String                @id @default(uuid())
+  gender           String
+  running_level    String
+  total_distance   Float
+  is_actived       Boolean               @default(true)
+  userId           String
+  user             User                  @relation(fields: [userId], references: [id])
+  healthData       HealthData[]
+  goals            Goal[]
+  alerts           HealthAlert[]
+  aiRecommendations        AIRecommendation[]
+  expertRecommendations    ExpertRecommendation[]
+  sessions         RunningSession[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+}
+
+model Expert {
+  id               String             @id @default(uuid())
+  specialty        String
+  experience       Int
+  rating           Float?
+  is_approved      Boolean             @default(false)
+  is_active        Boolean             @default(true)
+  userId           String
+  user             User                @relation(fields: [userId], references: [id])
+  ratings          ExpertRating[]
+  accesses         HealthDataExpertAccess[]
+  sessionAccess    RunningSessionExpertAccess[]
+  expertRecommendations ExpertRecommendation[]  // Expert 1-Nhiều ExpertRecommendation
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+model HealthData {
+  id          String      @id @default(uuid())
+  recorded_at DateTime
+  runnerId    String
+  runner      Runner      @relation(fields: [runnerId], references: [id])
+  values      HealthDataValue[]
+  accesses    HealthDataExpertAccess[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model HealthDataValue {
+  id          String       @id @default(uuid())
+  value       Float
+  healthDataId String
+  healthData  HealthData   @relation(fields: [healthDataId], references: [id])
+  typeId      String
+  type        HealthDataType @relation(fields: [typeId], references: [type_name])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model HealthDataType {
+  type_name   String   @id
+  description String?
+  values      HealthDataValue[]
+}
+
+model HealthDataExpertAccess {
+  id          String       @id @default(uuid())
+  is_accepted Boolean
+  expertId    String
+  expert      Expert       @relation(fields: [expertId], references: [id])
+  healthDataId String
+  healthData  HealthData   @relation(fields: [healthDataId], references: [id])
+}
+
+model Goal {
+  id             String     @id @default(uuid())
+  goal_description String
+  target_value   Float
+  current_value  Float
+  due_date       DateTime
+  runnerId       String
+  runner         Runner     @relation(fields: [runnerId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model HealthAlert {
+  id                   String             @id @default(uuid())
+  alert_type           String
+  alert_message        String
+  alert_date           DateTime
+  severity             String
+  status               String
+  runnerId             String
+  runner               Runner             @relation(fields: [runnerId], references: [id])
+  aiRecommendations    AIRecommendation[] // HealthAlert 1-Nhiều AIRecommendation
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+}
+
+
+model AIRecommendation {
+  id               String          @id @default(uuid())
+  recommendation   String
+  source           String
+  runnerId         String
+  runner           Runner          @relation(fields: [runnerId], references: [id])
+  alertId          String
+  healthAlert      HealthAlert     @relation(fields: [alertId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model ExpertRecommendation {
+  id               String          @id @default(uuid())
+  recommendation   String
+  source           String
+  runnerId         String
+  runner           Runner          @relation(fields: [runnerId], references: [id])
+  expertId         String
+  expert           Expert          @relation(fields: [expertId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model RunningSession {
+  id            String              @id @default(uuid())
+  session_date  DateTime
+  runnerId      String
+  runner        Runner              @relation(fields: [runnerId], references: [id])
+  values        RunningSessionValue[]
+  accesses      RunningSessionExpertAccess[]
+  locations     RunningLocation[]   // Thêm danh sách các tọa độ trong phiên chạy
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+
+model RunningSessionValue {
+  id               String         @id @default(uuid())
+  value            Float
+  sessionId        String
+  session          RunningSession @relation(fields: [sessionId], references: [id])
+  metricId         String
+  metric           RunningMetric  @relation(fields: [metricId], references: [metric_name])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model RunningMetric {
+  metric_name   String   @id
+  unit          String
+  values        RunningSessionValue[]
+}
+
+model RunningSessionExpertAccess {
+  id            String         @id @default(uuid())
+  is_accepted   Boolean
+  expertId      String
+  expert        Expert         @relation(fields: [expertId], references: [id])
+  sessionId     String
+  session       RunningSession @relation(fields: [sessionId], references: [id])
+}
+
+model ExpertRating {
+  id            String   @id @default(uuid())
+  score         Int
+  review        String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  expertId      String
+  expert        Expert   @relation(fields: [expertId], references: [id])
+}
+
+model Notification {
+  id            String   @id @default(uuid())
+  message       String
+  type          String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model Chat {
+  id            String   @id @default(uuid())
+  senderId      String
+  receiverId    String
+  message       String
+  status        String
+  sent_at       DateTime
+  delivered_at  DateTime?
+  is_deleted    Boolean  @default(false)
+  sender        User     @relation("Sender", fields: [senderId], references: [id])
+  receiver      User     @relation("Receiver", fields: [receiverId], references: [id])
+}
+
+model Certificate {
+  id              String   @id @default(uuid())
+  certificate_name String
+  issued_date     DateTime
+  expiry_date     DateTime
+  is_actived      Boolean  @default(true)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Blog {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  comments  Comment[]
+  likes     Like[]
+  tags      BlogTag[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id    String   @id @default(uuid())
+  name  String   @unique
+  blogs BlogTag[]
+}
+
+model BlogTag {
+  id     String @id @default(uuid())
+  blogId String
+  blog   Blog   @relation(fields: [blogId], references: [id])
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id])
+}
+
+model RunningLocation {
+  id         String         @id @default(uuid())
+  sessionId  String
+  session    RunningSession @relation(fields: [sessionId], references: [id])
+  timestamp  DateTime       // Thời gian ghi nhận tọa độ
+  latitude   Double         // Vĩ độ
+  longitude  Double         // Kinh độ
+  altitude   Double?        // Độ cao (nếu có)
+  hAccuracy  Double?        // Độ chính xác theo chiều ngang
+  vAccuracy  Double?        // Độ chính xác theo chiều dọc
+  createdAt  DateTime       @default(now())
+}
